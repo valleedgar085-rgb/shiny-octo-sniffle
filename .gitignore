@@ -11,6 +11,8 @@ yarn-error.log*
 /build
 /.next
 /.turbo
+web/dist/
+api/dist/
 
 # Env
 .env

@@ -1,8 +1,22 @@
+import { VoicingStyle } from '../../../lib/theory';
+
 export type Instrument = 'piano' | 'guitar' | 'strings';
-export type Settings = { bpm: number; velocity: number; instrument: Instrument };
+export type Settings = { 
+  bpm: number; 
+  velocity: number; 
+  instrument: Instrument;
+  voicingStyle: VoicingStyle;
+  useRichVoicing: boolean;
+};
 
 const KEY = 'chord-platform-web-settings';
-const DEFAULTS: Settings = { bpm: 100, velocity: 90, instrument: 'piano' };
+const DEFAULTS: Settings = { 
+  bpm: 100, 
+  velocity: 90, 
+  instrument: 'piano',
+  voicingStyle: 'close',
+  useRichVoicing: true,
+};
 
 export function getSettings(): Settings {
   try {
