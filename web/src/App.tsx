@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ROOTS, CHORD_FORMULAS, ChordType, getChordNotes, RootNote } from '../../lib/chords';
-import { getInversions, suggestNextChords } from '../../lib/theory';
+import { getInversions, suggestNextChords, getProgressionVoicings, VoicingStyle } from '../../lib/theory';
 import { playProgression } from './audio';
 import { saveProgression } from './services/api';
 import { getSettings, saveSettings, Settings, Instrument } from './store/settings';
@@ -34,10 +34,26 @@ function App() {
   const removeChord = (idx: number) => setChords(prev => prev.filter((_, i) => i !== idx));
   const clear = () => setChords([]);
 
-  const events = useMemo(
-    () => chords.map(c => ({ notes: getChordNotes(c.root, c.type), duration: c.duration })),
-    [chords]
-  );
+  const events = useMemo(() => {
+    if (!settings.useRichVoicing) {
+      // Use simple voicing (original behavior)
+      return chords.map(c => ({ notes: getChordNotes(c.root, c.type), duration: c.duration }));
+    }
+    
+    // Use rich voicing with smooth voice leading
+    const voicings = getProgressionVoicings(
+      chords.map(c => ({ root: c.root, type: c.type })),
+      { 
+        style: settings.voicingStyle,
+        octaveRange: { min: 48, max: 84 } // C3 to C6
+      }
+    );
+    
+    return chords.map((c, i) => ({ 
+      notes: voicings[i]?.notes || getChordNotes(c.root, c.type), 
+      duration: c.duration 
+    }));
+  }, [chords, settings.useRichVoicing, settings.voicingStyle]);
 
   const suggestions = useMemo(() => suggestNextChords('C', chords), [chords]);
 
@@ -95,6 +111,26 @@ function App() {
             </select>
           </label>
         </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
+          <label>
+            <input 
+              type="checkbox" 
+              checked={settings.useRichVoicing} 
+              onChange={e => onSettingsChange({ useRichVoicing: e.target.checked })} 
+            />
+            Use Rich Voicing
+          </label>
+          {settings.useRichVoicing && (
+            <label>Voicing Style
+              <select value={settings.voicingStyle} onChange={e => onSettingsChange({ voicingStyle: e.target.value as VoicingStyle })}>
+                <option value="close">Close</option>
+                <option value="open">Open</option>
+                <option value="drop2">Drop 2</option>
+                <option value="drop3">Drop 3</option>
+              </select>
+            </label>
+          )}
+        </div>
       </section>
 
       <section style={{ marginTop: 16 }}>
@@ -120,9 +156,15 @@ function App() {
           <ol>
             {chords.map((c, i) => {
               const inversions = getInversions(c.root, c.type);
+              const displayNotes = settings.useRichVoicing && events[i] 
+                ? events[i].notes 
+                : getChordNotes(c.root, c.type);
               return (
                 <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span>{c.root}{c.type} — [{getChordNotes(c.root, c.type).join(', ')}]</span>
+                  <span>
+                    {c.root}{c.type} — [{Array.isArray(displayNotes) ? displayNotes.join(', ') : 'N/A'}]
+                    {settings.useRichVoicing && <em style={{ fontSize: '0.85em', marginLeft: 4 }}>(voiced)</em>}
+                  </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>Beats:</span>
                     <button onClick={() => updateDuration(i, -1)}>-</button>

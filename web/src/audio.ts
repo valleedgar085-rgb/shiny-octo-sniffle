@@ -1,5 +1,6 @@
 import * as Tone from 'tone';
 import { Settings } from './store/settings';
+import { VoicingStyle } from '../../lib/theory';
 
 function velocityToGain(vel: number): number {
   const clamped = Math.max(1, Math.min(127, vel));
@@ -19,7 +20,15 @@ export async function playProgression(events: PlayEvent[], settings: Settings) {
 
   for (const ev of events) {
     const durSec = Math.max(0.2, (ev.duration * msPerBeat) / 1000);
-    synth.triggerAttackRelease(ev.notes.map(n => `${n}4`), durSec, Tone.now() + time);
+    // Notes are already formatted with octaves (e.g., "C4", "E4", "G4")
+    synth.triggerAttackRelease(ev.notes, durSec, Tone.now() + time);
     time += durSec;
   }
+}
+
+export async function playProgressionWithVoicing(
+  events: Array<{ notes: string[]; duration: number }>,
+  settings: Settings
+) {
+  await playProgression(events, settings);
 }

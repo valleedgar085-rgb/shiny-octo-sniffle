@@ -1,7 +1,15 @@
 import { RootNote, CHORD_FORMULAS, ChordType, getChordNotes, transpose, getNoteIndex, getScale } from './chords';
+import { 
+  generateRichVoicing, 
+  VoicingContext, 
+  VoicingStyle,
+  midiToPlaybackNotes,
+  calculateVoiceLeadingCost as calcVLCost
+} from './voicing';
 
 export type Inversion = 'root' | 'first' | 'second' | 'third';
 export type SuggestedChord = { root: RootNote; type: ChordType; reason: string };
+export { VoicingStyle, VoicingContext } from './voicing';
 
 const DIATONIC_TRIADS_MAJ: Record<number, ChordType> = {
   0: 'maj', // I
@@ -75,4 +83,56 @@ export function suggestNextChords(contextKey: RootNote, progression: { root: Roo
     seen.add(k);
     return true;
   }).slice(0, 12);
+}
+
+/**
+ * Generate voicing for a chord with optional context for smooth voice leading
+ */
+export function getChordVoicing(
+  root: RootNote,
+  type: ChordType,
+  options: {
+    style?: VoicingStyle;
+    previousVoicing?: number[];
+    octaveRange?: { min: number; max: number };
+  } = {}
+): { midi: number[]; notes: string[] } {
+  const context: VoicingContext = {
+    style: options.style || 'close',
+    previousVoicing: options.previousVoicing,
+    octaveRange: options.octaveRange,
+    prioritizeSmoothing: !!options.previousVoicing,
+  };
+  
+  const midiNotes = generateRichVoicing(root, type, context);
+  const playbackNotes = midiToPlaybackNotes(midiNotes);
+  
+  return { midi: midiNotes, notes: playbackNotes };
+}
+
+/**
+ * Generate voicings for an entire progression with smooth voice leading
+ */
+export function getProgressionVoicings(
+  progression: { root: RootNote; type: ChordType }[],
+  options: {
+    style?: VoicingStyle;
+    octaveRange?: { min: number; max: number };
+  } = {}
+): Array<{ midi: number[]; notes: string[] }> {
+  const voicings: Array<{ midi: number[]; notes: string[] }> = [];
+  let previousVoicing: number[] | undefined;
+  
+  for (const chord of progression) {
+    const voicing = getChordVoicing(chord.root, chord.type, {
+      style: options.style,
+      previousVoicing,
+      octaveRange: options.octaveRange,
+    });
+    
+    voicings.push(voicing);
+    previousVoicing = voicing.midi;
+  }
+  
+  return voicings;
 }
