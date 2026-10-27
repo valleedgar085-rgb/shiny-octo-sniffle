@@ -1,3 +1,0 @@
-# Track audio samples with Git LFS
-*.wav filter=lfs diff=lfs merge=lfs -text
-*.mp3 filter=lfs diff=lfs merge=lfs -text
